@@ -172,10 +172,10 @@ USBD_AUDIO_ItfTypeDef USBD_AUDIO_fops_FS =
 static int8_t AUDIO_Init_FS(uint32_t AudioFreq, uint32_t Volume, uint32_t options)
 {
   /* USER CODE BEGIN 0 */
-	printf("AUDIO_OUT_PACKET = %d\r\n", (int)AUDIO_OUT_PACKET);
+
 	  /* Uruchamiamy DMA SAI, przesyłając jeden pakiet (USB_AUDIO_PACKET_SIZE bajtów)
 	     – rozmiar transferu wyrażamy w halfwordach (USB_AUDIO_PACKET_SIZE/2) */
-	  if (HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t*)audioBuffer, USB_AUDIO_PACKET_SIZE/2) != HAL_OK)
+	  if (HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t*)audioBuffer, USB_AUDIO_PACKET_SIZE) != HAL_OK)
 	  {
 	    return USBD_FAIL;
 	  }
@@ -259,27 +259,30 @@ static int8_t AUDIO_MuteCtl_FS(uint8_t cmd)
 static int8_t AUDIO_PeriodicTC_FS(uint8_t *pbuf, uint32_t size, uint8_t cmd)
 {
   /* USER CODE BEGIN 5 */
-
+	printf("USB_AUDIO_PACKET_SIZE = %d\r\n", (int)USB_AUDIO_PACKET_SIZE);
 	/* Packet received Callback */
 
 	  /* W zależności od tego, która połowa bufora jest aktualnie wolna (sai_buf_half),
 	     kopiujemy odebrane dane do odpowiedniego fragmentu audioBuffer. */
 
-	  if (sai_buf_half == 0)
-	  {
-	    // Kopiuj do pierwszej połowy
-		  memcpy((uint8_t*)&audioBuffer[0], pbuf, USB_AUDIO_PACKET_SIZE);
-	  }
-	  else
-	  {
-	    // Kopiuj do drugiej połowy
-		  memcpy((uint8_t*)&audioBuffer[USB_AUDIO_PACKET_SIZE/2], pbuf, USB_AUDIO_PACKET_SIZE);
-	  }
+		// Zaktualizuj cały bufor jednocześnie
+	  memcpy((uint8_t*)audioBuffer, pbuf, USB_AUDIO_PACKET_SIZE);
+
+//	  if (sai_buf_half == 0)
+//	  {
+//	    // Kopiuj do pierwszej połowy
+//		  memcpy((uint8_t*)&audioBuffer[0], pbuf, USB_AUDIO_PACKET_SIZE);
+//	  }
+//	  else
+//	  {
+//	    // Kopiuj do drugiej połowy
+//		  memcpy((uint8_t*)&audioBuffer[USB_AUDIO_PACKET_SIZE/2], pbuf, USB_AUDIO_PACKET_SIZE);
+//	  }
 
 
-  UNUSED(pbuf);
-  UNUSED(size);
-  UNUSED(cmd);
+  //UNUSED(pbuf);
+  //UNUSED(size);
+  //UNUSED(cmd);
   return (USBD_OK);
   /* USER CODE END 5 */
 }

@@ -3,10 +3,10 @@
 ../USB_DEVICE/App/usbd_audio_if.c:210:15:AUDIO_AudioCmd_FS	2
 ../USB_DEVICE/App/usbd_audio_if.c:233:15:AUDIO_VolumeCtl_FS	1
 ../USB_DEVICE/App/usbd_audio_if.c:246:15:AUDIO_MuteCtl_FS	1
-../USB_DEVICE/App/usbd_audio_if.c:259:15:AUDIO_PeriodicTC_FS	2
-../USB_DEVICE/App/usbd_audio_if.c:291:15:AUDIO_GetState_FS	1
-../USB_DEVICE/App/usbd_audio_if.c:302:6:TransferComplete_CallBack_FS	1
-../USB_DEVICE/App/usbd_audio_if.c:313:6:HalfTransfer_CallBack_FS	1
-../USB_DEVICE/App/usbd_audio_if.c:322:6:HAL_SAI_TxHalfCpltCallback	1
-../USB_DEVICE/App/usbd_audio_if.c:328:6:HAL_SAI_TxCpltCallback	1
-../USB_DEVICE/App/usbd_audio_if.c:334:6:AUDIO_FeedbackUpdate_44100Hz	1
+../USB_DEVICE/App/usbd_audio_if.c:259:15:AUDIO_PeriodicTC_FS	1
+../USB_DEVICE/App/usbd_audio_if.c:294:15:AUDIO_GetState_FS	1
+../USB_DEVICE/App/usbd_audio_if.c:305:6:TransferComplete_CallBack_FS	1
+../USB_DEVICE/App/usbd_audio_if.c:316:6:HalfTransfer_CallBack_FS	1
+../USB_DEVICE/App/usbd_audio_if.c:325:6:HAL_SAI_TxHalfCpltCallback	1
+../USB_DEVICE/App/usbd_audio_if.c:331:6:HAL_SAI_TxCpltCallback	1
+../USB_DEVICE/App/usbd_audio_if.c:337:6:AUDIO_FeedbackUpdate_44100Hz	1
