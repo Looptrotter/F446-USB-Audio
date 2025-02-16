@@ -20,7 +20,7 @@
 #include "usbd_def.h"
 #include "usbd_core.h"
 #include <string.h>         // dla memcpy
-
+#include "sai.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Rozmiar ring buffera powinien być wielokrotnością rozmiaru bloku DMA */
@@ -60,23 +60,18 @@ static int8_t AUDIO_GetState_FS(void);
 
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_DECLARATION */
-/* You can define your SAI_Transmit_DMA function right here, instead of using sai_interface.h */
+
 void SAI_Transmit_DMA(uint8_t *pData, uint16_t Size)
 {
-  /**
-    * This function should set up and trigger a DMA-based transfer
-    * on your SAI peripheral. For example:
-
-      HAL_SAI_Transmit_DMA(&hsai_BlockA2, pData, Size / sizeof(uint16_t));
-
-    * Or whatever is appropriate for your target MCU and HAL configuration.
-    */
+  if (HAL_SAI_Transmit_DMA(&hsai_BlockA1, pData, Size) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /* Funkcja wewnętrzna do wypełniania bufora DMA danymi z ring buffera */
 static void SAI_Buffer_Fill(void)
 {
-  /* Sprawdzamy, czy w ring bufferze jest wystarczająca ilość danych */
   uint32_t available;
   if (writeIndex >= readIndex) {
     available = writeIndex - readIndex;
@@ -87,13 +82,11 @@ static void SAI_Buffer_Fill(void)
   if (available >= SAI_DMA_CHUNK_SIZE)
   {
     uint8_t dmaBuffer[SAI_DMA_CHUNK_SIZE];
-    uint32_t i;
-    for (i = 0; i < SAI_DMA_CHUNK_SIZE; i++)
+    for (uint32_t i = 0; i < SAI_DMA_CHUNK_SIZE; i++)
     {
       dmaBuffer[i] = audioRingBuffer[readIndex];
       readIndex = (readIndex + 1U) % AUDIO_RING_BUFFER_SIZE;
     }
-    /* Przekazujemy wybrany blok danych do SAI przy użyciu DMA */
     SAI_Transmit_DMA(dmaBuffer, SAI_DMA_CHUNK_SIZE);
   }
 }
@@ -164,16 +157,25 @@ static int8_t AUDIO_AudioCmd_FS(uint8_t* pbuf, uint32_t size, uint8_t cmd)
   /* USER CODE BEGIN AUDIO_AudioCmd_FS */
   (void)cmd;
 
+  /* Sprawdzenie przepełnienia bufora */
+  uint32_t spaceAvailable = (writeIndex >= readIndex) ?
+                            (AUDIO_RING_BUFFER_SIZE - (writeIndex - readIndex)) :
+                            (readIndex - writeIndex);
 
-  /* Kopiujemy odebrane dane do ring buffera. W przypadku przepełnienia stare dane
-     mogą zostać nadpisane – w produkcyjnym rozwiązaniu warto dodać mechanizm przepełnienia. */
+  if (size > spaceAvailable)
+  {
+    /* Przepełnienie bufora - można dodać obsługę błędu */
+    return USBD_FAIL;
+  }
+
+  /* Kopiowanie danych do ring buffera */
   for (uint32_t i = 0; i < size; i++)
   {
     audioRingBuffer[writeIndex] = pbuf[i];
     writeIndex = (writeIndex + 1U) % AUDIO_RING_BUFFER_SIZE;
   }
 
-  /* Po zapisaniu nowych danych możemy wywołać próbę wypełnienia DMA SAI */
+  /* Wywołanie funkcji wypełniającej bufor DMA */
   SAI_Buffer_Fill();
 
   return (USBD_OK);
@@ -242,11 +244,11 @@ static int8_t AUDIO_GetState_FS(void)
   */
 void TransferComplete_CallBack_FS(void)
 {
-  /* Aktualizacja feedbacku może być wykonywana osobno – tutaj najpierw
-     uzupełniamy blok DMA kolejnymi danymi z ring buffera */
-  SAI_Buffer_Fill();
-  /* Dodatkowo można tu dodać dynamiczne przeliczanie feedbacku */
-  USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_FULL);
+	  /* Aktualizacja feedbacku może być wykonywana osobno – tutaj najpierw
+	     uzupełniamy blok DMA kolejnymi danymi z ring buffera */
+	  SAI_Buffer_Fill();
+	  /* Dodatkowo można tu dodać dynamiczne przeliczanie feedbacku */
+	  USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_FULL);
 }
 
 /**
