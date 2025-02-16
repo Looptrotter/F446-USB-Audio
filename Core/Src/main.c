@@ -50,6 +50,7 @@ extern void AUDIO_FeedbackUpdate_44100Hz(void);
 
 //------------------------------ TON TESTOWY ------------------------------------------
 #define SINE_BUFFER_SIZE   528               // Rozmiar bufora – możesz dostosować
+#define FRAMES_COUNT       (SINE_BUFFER_SIZE / 2) // liczba ramek stereo
 #define PI                 3.14159265358979323846
 #define SINE_FREQ          500.0             // 800 Hz
 #define SAMPLE_RATE        44100.0           // 44,1 kHz
@@ -67,17 +68,24 @@ void PeriphCommonClock_Config(void);
 
 void GenerateSineWave(void)
 {
-  double phase = 0.0;
-  double phaseIncrement = 2.0 * PI * SINE_FREQ / SAMPLE_RATE;
-  for (int i = 0; i < SINE_BUFFER_SIZE; i++)
-  {
-    sineBuffer[i] = (int16_t)(AMPLITUDE * sin(phase));
-    phase += phaseIncrement;
-    if (phase >= 2.0 * PI)
+    /* W trybie stereo dla każdej ramki generujemy 1 próbkę (np. ten sam sygnał dla lewego i prawego kanału).
+       Dlatego pętla przebiega od 0 do FRAMES_COUNT.
+       W wyniku powstanie bufor o rozmiarze FRAMES_COUNT * 2 halfwordów.
+       Faza zmienia się tylko raz na ramkę.
+    */
+    double phase = 0.0;
+    double phaseIncrement = 2.0 * PI * SINE_FREQ / SAMPLE_RATE;
+    for (int frame = 0; frame < FRAMES_COUNT; frame++)
     {
-      phase -= 2.0 * PI;
+        int16_t sample = (int16_t)(AMPLITUDE * sin(phase));
+        /* Ustaw tę samą próbkę dla obu kanałów */
+        sineBuffer[frame * 2] = sample;     // lewy kanał
+        sineBuffer[frame * 2 + 1] = sample; // prawy kanał
+
+        phase += phaseIncrement;
+        if (phase >= 2.0 * PI)
+            phase -= 2.0 * PI;
     }
-  }
 }
 
 /* USER CODE END PFP */
@@ -134,7 +142,7 @@ int main(void)
     /* Zakładamy, że SAI1_BlockA i DMA zostały wcześniej zainicjalizowane.
        Funkcja HAL_SAI_Transmit_DMA uruchamia transmisję bufora w trybie circular,
        więc sinusoidalne próbki będą odtwarzane ciągle. */
-    HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)sineBuffer, SINE_BUFFER_SIZE);
+    //HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)sineBuffer, SINE_BUFFER_SIZE);
 
 
 
@@ -212,7 +220,7 @@ void PeriphCommonClock_Config(void)
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 180;
   PeriphClkInitStruct.PLLSAI.PLLSAIQ = 4;
   PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
-  PeriphClkInitStruct.PLLSAIDivQ = 1;
+  PeriphClkInitStruct.PLLSAIDivQ = 4;
   PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLLSAI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
