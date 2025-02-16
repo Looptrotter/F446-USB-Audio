@@ -134,7 +134,7 @@ int main(void)
     /* Zakładamy, że SAI1_BlockA i DMA zostały wcześniej zainicjalizowane.
        Funkcja HAL_SAI_Transmit_DMA uruchamia transmisję bufora w trybie circular,
        więc sinusoidalne próbki będą odtwarzane ciągle. */
-    HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)sineBuffer, SINE_BUFFER_SIZE / 2);
+    HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)sineBuffer, SINE_BUFFER_SIZE);
 
 
 
@@ -210,7 +210,7 @@ void PeriphCommonClock_Config(void)
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
   PeriphClkInitStruct.PLLSAI.PLLSAIM = 8;
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 180;
-  PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
+  PeriphClkInitStruct.PLLSAI.PLLSAIQ = 4;
   PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
   PeriphClkInitStruct.PLLSAIDivQ = 1;
   PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLLSAI;
