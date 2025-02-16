@@ -108,8 +108,6 @@ EndBSPDependencies */
 
 
 /** @defgroup USBD_AUDIO_Private_FunctionPrototypes
- *
- *
   * @{
   */
 static uint8_t USBD_AUDIO_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
@@ -343,27 +341,6 @@ static uint8_t AUDIOOutEpAdd = AUDIO_OUT_EP;
 /** @defgroup USBD_AUDIO_Private_Functions
   * @{
   */
-/**
-  * @brief  USBD_AUDIO_Sync_Sync
-  *         Prosta funkcja synchronizująca dla trybu synchronicznego USB audio.
-  *         Wysyła stały pakiet danych o rozmiarze AUDIO_OUT_PACKET przez wywołanie AudioCmd.
-  * @param  pdev: wskaźnik na uchwyt urządzenia USB.
-  * @retval None.
-  */
-void USBD_AUDIO_Sync_Sync(USBD_HandleTypeDef *pdev)
-{
-  USBD_AUDIO_HandleTypeDef *haudio;
-  if (pdev->pClassDataCmsit[pdev->classId] == NULL)
-  {
-    return;
-  }
-  haudio = (USBD_AUDIO_HandleTypeDef *)pdev->pClassDataCmsit[pdev->classId];
-
-  /* Wywołujemy AudioCmd, przekazując cały pakiet (AUDIO_OUT_PACKET bajtów) */
-  ((USBD_AUDIO_ItfTypeDef *)pdev->pUserData[pdev->classId])->AudioCmd(&haudio->buffer[0],
-                                                                       AUDIO_OUT_PACKET,
-                                                                       AUDIO_CMD_PLAY);
-}
 
 /**
   * @brief  USBD_AUDIO_Init

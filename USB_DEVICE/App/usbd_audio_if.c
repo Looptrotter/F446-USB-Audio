@@ -22,11 +22,9 @@
 #include "usbd_audio_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
 #include "usbd_ctlreq.h"
 #include "usbd_def.h"
 #include "usbd_core.h"
-
 #include "sai.h"
 /* USER CODE END INCLUDE */
 
@@ -35,21 +33,20 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-
-/* Używamy definicji z usbd_audio.h:
+/* Wykorzystujemy definicje z usbd_audio.h:
    USBD_AUDIO_FREQ, AUDIO_OUT_PACKET, itp.
 */
 #define USB_AUDIO_PACKET_SIZE   AUDIO_OUT_PACKET
-#define AUDIO_BUF_SIZE          (USB_AUDIO_PACKET_SIZE * 2)
 
-/* Bufor audio – podwójne buforowanie (2 pakiety) */
+/* Zmieniamy podejście – zamiast podwójnego buforowania, używamy pojedynczego bufora o rozmiarze pakietu */
+#define AUDIO_BUF_SIZE          USB_AUDIO_PACKET_SIZE
+
+/* Bufor audio – rozmiar w bajtach; DMA będzie operować na halfwordach,
+   dlatego liczba halfwordów wynosi AUDIO_BUF_SIZE/2 */
 static uint16_t audioBuffer[AUDIO_BUF_SIZE/2];
-static volatile uint8_t sai_buf_half = 0;
 
 /* Bufor 3-bajtowy dla feedbacku (format 10.14, little-endian) */
 static uint8_t feedbackData[3] = {0x00, 0x10, 0x16};
-
 
 /* USER CODE END PV */
 
@@ -68,7 +65,6 @@ static uint8_t feedbackData[3] = {0x00, 0x10, 0x16};
   */
 
 /* USER CODE BEGIN PRIVATE_TYPES */
-
 /* USER CODE END PRIVATE_TYPES */
 
 /**
@@ -81,7 +77,6 @@ static uint8_t feedbackData[3] = {0x00, 0x10, 0x16};
   */
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
-
 /* USER CODE END PRIVATE_DEFINES */
 
 /**
@@ -94,7 +89,6 @@ static uint8_t feedbackData[3] = {0x00, 0x10, 0x16};
   */
 
 /* USER CODE BEGIN PRIVATE_MACRO */
-
 /* USER CODE END PRIVATE_MACRO */
 
 /**
@@ -107,7 +101,6 @@ static uint8_t feedbackData[3] = {0x00, 0x10, 0x16};
   */
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
-
 /* USER CODE END PRIVATE_VARIABLES */
 
 /**
@@ -122,7 +115,6 @@ static uint8_t feedbackData[3] = {0x00, 0x10, 0x16};
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**
@@ -143,7 +135,6 @@ static int8_t AUDIO_PeriodicTC_FS(uint8_t *pbuf, uint32_t size, uint8_t cmd);
 static int8_t AUDIO_GetState_FS(void);
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_DECLARATION */
-
 /* USER CODE END PRIVATE_FUNCTIONS_DECLARATION */
 
 /**
@@ -172,14 +163,6 @@ USBD_AUDIO_ItfTypeDef USBD_AUDIO_fops_FS =
 static int8_t AUDIO_Init_FS(uint32_t AudioFreq, uint32_t Volume, uint32_t options)
 {
   /* USER CODE BEGIN 0 */
-
-	  /* Uruchamiamy DMA SAI, przesyłając jeden pakiet (USB_AUDIO_PACKET_SIZE bajtów)
-	     – rozmiar transferu wyrażamy w halfwordach (USB_AUDIO_PACKET_SIZE/2) */
-	  if (HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t*)audioBuffer, USB_AUDIO_PACKET_SIZE) != HAL_OK)
-	  {
-	    return USBD_FAIL;
-	  }
-
   UNUSED(AudioFreq);
   UNUSED(Volume);
   UNUSED(options);
@@ -259,30 +242,9 @@ static int8_t AUDIO_MuteCtl_FS(uint8_t cmd)
 static int8_t AUDIO_PeriodicTC_FS(uint8_t *pbuf, uint32_t size, uint8_t cmd)
 {
   /* USER CODE BEGIN 5 */
-	printf("USB_AUDIO_PACKET_SIZE = %d\r\n", (int)USB_AUDIO_PACKET_SIZE);
-	/* Packet received Callback */
-
-	  /* W zależności od tego, która połowa bufora jest aktualnie wolna (sai_buf_half),
-	     kopiujemy odebrane dane do odpowiedniego fragmentu audioBuffer. */
-
-		// Zaktualizuj cały bufor jednocześnie
-	  memcpy((uint8_t*)audioBuffer, pbuf, USB_AUDIO_PACKET_SIZE);
-
-//	  if (sai_buf_half == 0)
-//	  {
-//	    // Kopiuj do pierwszej połowy
-//		  memcpy((uint8_t*)&audioBuffer[0], pbuf, USB_AUDIO_PACKET_SIZE);
-//	  }
-//	  else
-//	  {
-//	    // Kopiuj do drugiej połowy
-//		  memcpy((uint8_t*)&audioBuffer[USB_AUDIO_PACKET_SIZE/2], pbuf, USB_AUDIO_PACKET_SIZE);
-//	  }
-
-
-  //UNUSED(pbuf);
-  //UNUSED(size);
-  //UNUSED(cmd);
+  UNUSED(pbuf);
+  UNUSED(size);
+  UNUSED(cmd);
   return (USBD_OK);
   /* USER CODE END 5 */
 }
@@ -321,19 +283,6 @@ void HalfTransfer_CallBack_FS(void)
 }
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
-
-void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai)
-{
-  /* Kolejny pakiet USB trafi do drugiej połowy bufora */
-  sai_buf_half = 1;
-}
-
-void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai)
-{
-  /* Kolejny pakiet USB trafi do pierwszej połowy bufora */
-  sai_buf_half = 0;
-}
-
 void AUDIO_FeedbackUpdate_44100Hz(void)
 {
   /*
@@ -341,8 +290,6 @@ void AUDIO_FeedbackUpdate_44100Hz(void)
    * Gdybyś chciał dynamicznie mierzyć zegar SAI i korygować, to tu wstawiasz
    * obliczenia i aktualizację feedbackData.
    */
-
-  // Dla pewności ustawiamy ponownie:
   feedbackData[0] = 0x00;  // LSB
   feedbackData[1] = 0x10;  // Middle
   feedbackData[2] = 0x16;  // MSB
@@ -351,10 +298,6 @@ void AUDIO_FeedbackUpdate_44100Hz(void)
      który w deskryptorach ma bmAttributes=0x11 i wMaxPacketSize=3 */
   USBD_LL_Transmit(&hUsbDeviceFS, 0x81, feedbackData, 3);
 }
-
-
-
-
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
 /**

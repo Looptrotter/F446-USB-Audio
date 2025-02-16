@@ -129,12 +129,12 @@ int main(void)
 
 
 
-    //GenerateSineWave();
+    GenerateSineWave();
 
     /* Zakładamy, że SAI1_BlockA i DMA zostały wcześniej zainicjalizowane.
        Funkcja HAL_SAI_Transmit_DMA uruchamia transmisję bufora w trybie circular,
        więc sinusoidalne próbki będą odtwarzane ciągle. */
-    //HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)sineBuffer, SINE_BUFFER_SIZE / 2);
+    HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)sineBuffer, SINE_BUFFER_SIZE / 2);
 
 
 
