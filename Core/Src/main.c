@@ -232,8 +232,7 @@ void PeriphCommonClock_Config(void)
 
 void HAL_SYSTICK_Callback(void)
 {
-  /* Tutaj wywołujesz np. funkcję AUDIO_FeedbackUpdate_44100Hz() */
-  AUDIO_FeedbackUpdate_44100Hz();
+
 }
 
 

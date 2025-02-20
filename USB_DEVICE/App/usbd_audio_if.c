@@ -1,54 +1,125 @@
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file    usbd_audio_if.c
-  * @brief   Implementacja interfejsu USB AUDIO z buforowaniem, dekodowaniem
-  *          i przekazywaniem danych do SAI z wykorzystaniem DMA.
+  * @file           : usbd_audio_if.c
+  * @version        : v1.0_Cube
+  * @brief          : Generic media access layer.
   ******************************************************************************
   * @attention
   *
-  * Ta implementacja zakłada, że format danych przesyłanych przez USB jest PCM,
-  * stereo, 16-bit, z częstotliwością 44100 Hz. Odebrane dane są zapisywane
-  * w ring bufferze, a następnie przekazywane do interfejsu SAI przy użyciu
-  * wyzwalanych callbacków DMA.
+  * Copyright (c) 2025 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
+ /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_audio_if.h"
-#include "usbd_ctlreq.h"
-#include "usbd_def.h"
-#include "usbd_core.h"
+
+/* USER CODE BEGIN INCLUDE */
 #include <string.h>         // dla memcpy
 #include "sai.h"
+#include "usbd_audio.h"
+/* USER CODE END INCLUDE */
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-/* Rozmiar ring buffera powinien być wielokrotnością rozmiaru bloku DMA */
-#define AUDIO_RING_BUFFER_SIZE   4096U
-/* Rozmiar bloku danych przekazywanego do SAI – zależy od ustawień DMA */
-#define SAI_DMA_CHUNK_SIZE       512U
-
 /* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN Private_Macros */
-/* USER CODE END Private_Macros */
-
-/* Private variables ---------------------------------------------------------*/
-/* Ring buffer na dane audio */
-static uint8_t audioRingBuffer[AUDIO_RING_BUFFER_SIZE];
-/* Indeks zapisu i odczytu */
-static volatile uint32_t writeIndex = 0;
-static volatile uint32_t readIndex  = 0;
-
-/* Stały feedback dla 44100 Hz w formacie 10.14 (3 bajty, little-endian) */
-static uint8_t feedbackData[3] = { 0x00, 0x11, 0x2B };
 
 /* USER CODE BEGIN PV */
+
+
 /* USER CODE END PV */
 
-/* Extern variables ----------------------------------------------------------*/
+/** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
+  * @brief Usb device library.
+  * @{
+  */
+
+/** @addtogroup USBD_AUDIO_IF
+  * @{
+  */
+
+/** @defgroup USBD_AUDIO_IF_Private_TypesDefinitions USBD_AUDIO_IF_Private_TypesDefinitions
+  * @brief Private types.
+  * @{
+  */
+
+/* USER CODE BEGIN PRIVATE_TYPES */
+
+/* USER CODE END PRIVATE_TYPES */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_AUDIO_IF_Private_Defines USBD_AUDIO_IF_Private_Defines
+  * @brief Private defines.
+  * @{
+  */
+
+/* USER CODE BEGIN PRIVATE_DEFINES */
+
+
+/* USER CODE END PRIVATE_DEFINES */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_AUDIO_IF_Private_Macros USBD_AUDIO_IF_Private_Macros
+  * @brief Private macros.
+  * @{
+  */
+
+/* USER CODE BEGIN PRIVATE_MACRO */
+
+/* USER CODE END PRIVATE_MACRO */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_AUDIO_IF_Private_Variables USBD_AUDIO_IF_Private_Variables
+  * @brief Private variables.
+  * @{
+  */
+
+/* USER CODE BEGIN PRIVATE_VARIABLES */
+
+
+
+/* USER CODE END PRIVATE_VARIABLES */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_AUDIO_IF_Exported_Variables USBD_AUDIO_IF_Exported_Variables
+  * @brief Public variables.
+  * @{
+  */
+
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
-/* Private function prototypes -----------------------------------------------*/
+/* USER CODE BEGIN EXPORTED_VARIABLES */
+
+/* USER CODE END EXPORTED_VARIABLES */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_AUDIO_IF_Private_FunctionPrototypes USBD_AUDIO_IF_Private_FunctionPrototypes
+  * @brief Private functions declaration.
+  * @{
+  */
+
 static int8_t AUDIO_Init_FS(uint32_t AudioFreq, uint32_t Volume, uint32_t options);
 static int8_t AUDIO_DeInit_FS(uint32_t options);
 static int8_t AUDIO_AudioCmd_FS(uint8_t* pbuf, uint32_t size, uint8_t cmd);
@@ -57,42 +128,14 @@ static int8_t AUDIO_MuteCtl_FS(uint8_t cmd);
 static int8_t AUDIO_PeriodicTC_FS(uint8_t *pbuf, uint32_t size, uint8_t cmd);
 static int8_t AUDIO_GetState_FS(void);
 
-
-
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_DECLARATION */
 
-void SAI_Transmit_DMA(uint8_t *pData, uint16_t Size)
-{
-  if (HAL_SAI_Transmit_DMA(&hsai_BlockA1, pData, Size) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/* Funkcja wewnętrzna do wypełniania bufora DMA danymi z ring buffera */
-static void SAI_Buffer_Fill(void)
-{
-  uint32_t available;
-  if (writeIndex >= readIndex) {
-    available = writeIndex - readIndex;
-  } else {
-    available = AUDIO_RING_BUFFER_SIZE - (readIndex - writeIndex);
-  }
-
-  if (available >= SAI_DMA_CHUNK_SIZE)
-  {
-    uint8_t dmaBuffer[SAI_DMA_CHUNK_SIZE];
-    for (uint32_t i = 0; i < SAI_DMA_CHUNK_SIZE; i++)
-    {
-      dmaBuffer[i] = audioRingBuffer[readIndex];
-      readIndex = (readIndex + 1U) % AUDIO_RING_BUFFER_SIZE;
-    }
-    SAI_Transmit_DMA(dmaBuffer, SAI_DMA_CHUNK_SIZE);
-  }
-}
 /* USER CODE END PRIVATE_FUNCTIONS_DECLARATION */
 
-/* Struktura interfejsu USB AUDIO */
+/**
+  * @}
+  */
+
 USBD_AUDIO_ItfTypeDef USBD_AUDIO_fops_FS =
 {
   AUDIO_Init_FS,
@@ -105,176 +148,159 @@ USBD_AUDIO_ItfTypeDef USBD_AUDIO_fops_FS =
 };
 
 /* Private functions ---------------------------------------------------------*/
-
 /**
-  * @brief  Inicjalizuje warstwę middleware AUDIO.
-  * @param  AudioFreq: Zadana częstotliwość (oczekujemy 44100Hz)
-  * @param  Volume: Początkowy poziom głośności
-  * @param  options: Opcje inicjalizacji (zarezerwowane)
-  * @retval USBD_OK w przypadku powodzenia, USBD_FAIL w przeciwnym
+  * @brief  Initializes the AUDIO media low layer over USB FS IP
+  * @param  AudioFreq: Audio frequency used to play the audio stream.
+  * @param  Volume: Initial volume level (from 0 (Mute) to 100 (Max))
+  * @param  options: Reserved for future use
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t AUDIO_Init_FS(uint32_t AudioFreq, uint32_t Volume, uint32_t options)
 {
-  /* USER CODE BEGIN AUDIO_Init_FS */
-  (void)AudioFreq;
-  (void)Volume;
-  (void)options;
-  /* Inicjalizacja ring buffera i indeksów */
-  writeIndex = 0U;
-  readIndex  = 0U;
+  /* USER CODE BEGIN 0 */
 
-  /* Tu można wywołać dodatkową inicjalizację SAI, np. konfigurację DMA.
-     W tej podstawowej implementacji zakładamy, że SAI jest skonfigurowany osobno. */
-
+  UNUSED(AudioFreq);
+  UNUSED(Volume);
+  UNUSED(options);
   return (USBD_OK);
-  /* USER CODE END AUDIO_Init_FS */
+
+  /* USER CODE END 0 */
 }
 
 /**
-  * @brief  De-inicjalizuje warstwę AUDIO.
-  * @param  options: Opcje de-inicjalizacji (zarezerwowane)
-  * @retval USBD_OK
+  * @brief  De-Initializes the AUDIO media low layer
+  * @param  options: Reserved for future use
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t AUDIO_DeInit_FS(uint32_t options)
 {
-  /* USER CODE BEGIN AUDIO_DeInit_FS */
-  (void)options;
+  /* USER CODE BEGIN 1 */
+  UNUSED(options);
   return (USBD_OK);
-  /* USER CODE END AUDIO_DeInit_FS */
+  /* USER CODE END 1 */
 }
 
 /**
-  * @brief  Obsługuje komendy audio przesyłane z hosta.
-  *         Ta funkcja zapisuje odebrane dane do ring buffera, z którego będą
-  *         pobierane kolejne bloki do transmisji przez SAI.
-  * @param  pbuf: Wskaźnik do bufora z danymi audio
-  * @param  size: Rozmiar danych (w bajtach)
-  * @param  cmd: Polecenie (np. AUDIO_CMD_START, AUDIO_CMD_PLAY)
-  * @retval USBD_OK
+  * @brief  Handles AUDIO command.
+  * @param  pbuf: Pointer to buffer of data to be sent
+  * @param  size: Number of data to be sent (in bytes)
+  * @param  cmd: Command opcode
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t AUDIO_AudioCmd_FS(uint8_t* pbuf, uint32_t size, uint8_t cmd)
 {
-  /* USER CODE BEGIN AUDIO_AudioCmd_FS */
-  (void)cmd;
+  /* USER CODE BEGIN 2 */
 
-  /* Sprawdzenie przepełnienia bufora */
-  uint32_t spaceAvailable = (writeIndex >= readIndex) ?
-                            (AUDIO_RING_BUFFER_SIZE - (writeIndex - readIndex)) :
-                            (readIndex - writeIndex);
 
-  if (size > spaceAvailable)
+  switch(cmd)
   {
-    /* Przepełnienie bufora - można dodać obsługę błędu */
-    return USBD_FAIL;
+    case AUDIO_CMD_START:
+
+    break;
+
+    case AUDIO_CMD_STOP:
+    	//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
+      break;
+
+    case AUDIO_CMD_PLAY:
+
+    break;
   }
-
-  /* Kopiowanie danych do ring buffera */
-  for (uint32_t i = 0; i < size; i++)
-  {
-    audioRingBuffer[writeIndex] = pbuf[i];
-    writeIndex = (writeIndex + 1U) % AUDIO_RING_BUFFER_SIZE;
-  }
-
-  /* Wywołanie funkcji wypełniającej bufor DMA */
-  SAI_Buffer_Fill();
-
+  UNUSED(pbuf);
+  UNUSED(size);
+  UNUSED(cmd);
   return (USBD_OK);
-  /* USER CODE END AUDIO_AudioCmd_FS */
+  /* USER CODE END 2 */
 }
 
 /**
-  * @brief  Ustawia głośność odtwarzania.
-  * @param  vol: Poziom głośności (0-100)
-  * @retval USBD_OK
+  * @brief  Controls AUDIO Volume.
+  * @param  vol: volume level (0..100)
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t AUDIO_VolumeCtl_FS(uint8_t vol)
 {
-  /* USER CODE BEGIN AUDIO_VolumeCtl_FS */
-  (void)vol;
+  /* USER CODE BEGIN 3 */
+  UNUSED(vol);
   return (USBD_OK);
-  /* USER CODE END AUDIO_VolumeCtl_FS */
+  /* USER CODE END 3 */
 }
 
 /**
-  * @brief  Ustawia tryb mute.
-  * @param  cmd: Komenda mute (0 = off, 1 = on)
-  * @retval USBD_OK
+  * @brief  Controls AUDIO Mute.
+  * @param  cmd: command opcode
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t AUDIO_MuteCtl_FS(uint8_t cmd)
 {
-  /* USER CODE BEGIN AUDIO_MuteCtl_FS */
-  (void)cmd;
+  /* USER CODE BEGIN 4 */
+  UNUSED(cmd);
   return (USBD_OK);
-  /* USER CODE END AUDIO_MuteCtl_FS */
+  /* USER CODE END 4 */
 }
 
 /**
-  * @brief  Callback okresowej transmisji (Periodic Transfer Callback).
-  *         W tej implementacji nie wykonujemy dodatkowych operacji, ale
-  *         funkcja jest zachowywana dla zgodności z API.
-  * @param  pbuf: Wskaźnik do bufora (nieużywany)
-  * @param  size: Rozmiar danych (nieużywany)
-  * @param  cmd: Kod operacji (nieużywany)
-  * @retval USBD_OK
+  * @brief  AUDIO_PeriodicT_FS
+  * @param  cmd: Command opcode
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t AUDIO_PeriodicTC_FS(uint8_t *pbuf, uint32_t size, uint8_t cmd)
 {
-  /* USER CODE BEGIN AUDIO_PeriodicTC_FS */
-  (void)pbuf;
-  (void)size;
-  (void)cmd;
+  /* USER CODE BEGIN 5 */
+  UNUSED(pbuf);
+  UNUSED(size);
+  UNUSED(cmd);
   return (USBD_OK);
-  /* USER CODE END AUDIO_PeriodicTC_FS */
+  /* USER CODE END 5 */
 }
 
 /**
-  * @brief  Zwraca aktualny stan interfejsu AUDIO.
-  * @retval Stan audio (tutaj zawsze USBD_OK)
+  * @brief  Gets AUDIO State.
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t AUDIO_GetState_FS(void)
 {
-  /* USER CODE BEGIN AUDIO_GetState_FS */
+  /* USER CODE BEGIN 6 */
   return (USBD_OK);
-  /* USER CODE END AUDIO_GetState_FS */
+  /* USER CODE END 6 */
 }
 
 /**
-  * @brief  Callback wywoływany przy pełnym zakończeniu transmisji DMA.
-  *         Po zakończeniu transmisji wywołuje funkcję uzupełniającą bufor SAI.
+  * @brief  Manages the DMA full transfer complete event.
+  * @retval None
   */
 void TransferComplete_CallBack_FS(void)
 {
-	  /* Aktualizacja feedbacku może być wykonywana osobno – tutaj najpierw
-	     uzupełniamy blok DMA kolejnymi danymi z ring buffera */
-	  SAI_Buffer_Fill();
-	  /* Dodatkowo można tu dodać dynamiczne przeliczanie feedbacku */
+  /* USER CODE BEGIN 7 */
+
 	  USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_FULL);
+
+  /* USER CODE END 7 */
 }
 
 /**
-  * @brief  Callback wywoływany przy zakończeniu połowy transmisji DMA.
-  *         Analogicznie do pełnego transferu uzupełnia drugą połowę bufora.
+  * @brief  Manages the DMA Half transfer complete event.
+  * @retval None
   */
 void HalfTransfer_CallBack_FS(void)
 {
-  SAI_Buffer_Fill();
-  USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_HALF);
-}
+  /* USER CODE BEGIN 8 */
 
-/**
-  * @brief  Aktualizuje dane feedback dla hosta.
-  *         W tej implementacji feedback pozostaje stały – odpowiada 44100 Hz.
-  */
-void AUDIO_FeedbackUpdate_44100Hz(void)
-{
-  /* Ustawienie stałego feedbacku w formacie 10.14 (little-endian) */
-  feedbackData[0] = 0x00;  /* LSB */
-  feedbackData[1] = 0x11;
-  feedbackData[2] = 0x2B;  /* MSB */
 
-  /* Transmisja danych feedback przez odpowiedni endpoint IN (np. 0x81) */
-  USBD_LL_Transmit(&hUsbDeviceFS, 0x81, feedbackData, 3);
+	  USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_HALF);
+
+  /* USER CODE END 8 */
 }
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
+
+
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */

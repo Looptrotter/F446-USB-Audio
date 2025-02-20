@@ -38,9 +38,6 @@ USB_DEVICE/App/usbd_audio_if.o: ../USB_DEVICE/App/usbd_audio_if.c \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h \
- ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h \
- ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
- ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
  ../Core/Inc/sai.h ../Core/Inc/main.h
 ../USB_DEVICE/App/usbd_audio_if.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Class/AUDIO/Inc/usbd_audio.h:
@@ -82,8 +79,5 @@ USB_DEVICE/App/usbd_audio_if.o: ../USB_DEVICE/App/usbd_audio_if.c \
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:
-../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:
-../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
-../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h:
 ../Core/Inc/sai.h:
 ../Core/Inc/main.h:
