@@ -24,6 +24,7 @@
 /* USER CODE BEGIN INCLUDE */
 #include <string.h>         // dla memcpy
 #include "sai.h"
+#include "i2s.h"
 #include "usbd_audio.h"
 /* USER CODE END INCLUDE */
 
@@ -91,7 +92,9 @@
   */
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
-
+extern SAI_HandleTypeDef hsai_BlockA1;
+extern DMA_HandleTypeDef hdma_sai1_a;
+static USBD_AUDIO_HandleTypeDef haudio;
 
 
 /* USER CODE END PRIVATE_VARIABLES */
@@ -159,6 +162,7 @@ static int8_t AUDIO_Init_FS(uint32_t AudioFreq, uint32_t Volume, uint32_t option
 {
   /* USER CODE BEGIN 0 */
 
+
   UNUSED(AudioFreq);
   UNUSED(Volume);
   UNUSED(options);
@@ -195,15 +199,17 @@ static int8_t AUDIO_AudioCmd_FS(uint8_t* pbuf, uint32_t size, uint8_t cmd)
   switch(cmd)
   {
     case AUDIO_CMD_START:
-
+    	HAL_SAI_Transmit_DMA(&hsai_BlockA1, pbuf, size / 2);
+    	//HAL_I2S_Transmit_DMA(&hi2s1, (uint16_t *)pbuf, size / 2);
     break;
 
     case AUDIO_CMD_STOP:
-    	//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
+    	HAL_SAI_DMAStop(&hsai_BlockA1);
       break;
 
     case AUDIO_CMD_PLAY:
-
+    	HAL_SAI_Transmit_DMA(&hsai_BlockA1, pbuf, size / 2);
+    	//HAL_I2S_Transmit_DMA(&hi2s1, (uint16_t *)pbuf, size / 2);
     break;
   }
   UNUSED(pbuf);
@@ -273,7 +279,7 @@ void TransferComplete_CallBack_FS(void)
 {
   /* USER CODE BEGIN 7 */
 
-	  USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_FULL);
+	  //USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_FULL);
 
   /* USER CODE END 7 */
 }
@@ -287,7 +293,7 @@ void HalfTransfer_CallBack_FS(void)
   /* USER CODE BEGIN 8 */
 
 
-	  USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_HALF);
+	  //USBD_AUDIO_Sync(&hUsbDeviceFS, AUDIO_OFFSET_HALF);
 
   /* USER CODE END 8 */
 }

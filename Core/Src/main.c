@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "i2s.h"
 #include "sai.h"
 #include "usart.h"
 #include "usb_device.h"
@@ -131,6 +132,7 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_DEVICE_Init();
   MX_SAI1_Init();
+  MX_I2S1_Init();
   /* USER CODE BEGIN 2 */
   printf("Test\n");
 
@@ -143,6 +145,7 @@ int main(void)
        Funkcja HAL_SAI_Transmit_DMA uruchamia transmisję bufora w trybie circular,
        więc sinusoidalne próbki będą odtwarzane ciągle. */
     //HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)sineBuffer, SINE_BUFFER_SIZE);
+    //HAL_I2S_Transmit_DMA(&hi2s1, (uint16_t *)sineBuffer, SINE_BUFFER_SIZE);
 
 
 
@@ -217,10 +220,10 @@ void PeriphCommonClock_Config(void)
   */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
   PeriphClkInitStruct.PLLSAI.PLLSAIM = 8;
-  PeriphClkInitStruct.PLLSAI.PLLSAIN = 180;
-  PeriphClkInitStruct.PLLSAI.PLLSAIQ = 4;
+  PeriphClkInitStruct.PLLSAI.PLLSAIN = 196;
+  PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
   PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
-  PeriphClkInitStruct.PLLSAIDivQ = 4;
+  PeriphClkInitStruct.PLLSAIDivQ = 1;
   PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLLSAI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {

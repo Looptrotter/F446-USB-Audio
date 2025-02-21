@@ -1,7 +1,7 @@
-../Core/Src/main.c:69:6:GenerateSineWave	3
-../Core/Src/main.c:102:5:main	1
-../Core/Src/main.c:166:6:SystemClock_Config	3
-../Core/Src/main.c:212:6:PeriphCommonClock_Config	2
-../Core/Src/main.c:233:6:HAL_SYSTICK_Callback	1
-../Core/Src/main.c:239:5:__io_putchar	2
-../Core/Src/main.c:255:6:Error_Handler	1
+../Core/Src/main.c:70:6:GenerateSineWave	3
+../Core/Src/main.c:103:5:main	1
+../Core/Src/main.c:169:6:SystemClock_Config	3
+../Core/Src/main.c:215:6:PeriphCommonClock_Config	2
+../Core/Src/main.c:236:6:HAL_SYSTICK_Callback	1
+../Core/Src/main.c:242:5:__io_putchar	2
+../Core/Src/main.c:258:6:Error_Handler	1
